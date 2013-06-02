@@ -1,7 +1,7 @@
 XPlaneOculus
 ============
 
-A plugin for X-Plane that adds support for head tracking with the [Oculus Rift](http://www.oculusvr.com) virtual reality HMD.
+A plugin for [X-Plane](http://www.x-plane.com) that adds support for head tracking with the [Oculus Rift](http://www.oculusvr.com) virtual reality HMD.
 
 3D rendering for the rift is not currently supported. I'm using [Ibex](http://hwahba.com/ibex/) to convert the X-Plane window's image to the format needed by the rift for now. It's not a perfect solution at all, but it's good enough for initial development.
 
