@@ -251,10 +251,10 @@ int 	MyOrbitPlaneFunc(
         XPLMDataRef gHeadZ = XPLMFindDataRef("sim/aircraft/view/acf_peZ");
         
         
-        outCameraPosition->x = XPLMGetDataf(gPlaneX);// + XPLMGetDataf(gHeadX);
-		outCameraPosition->y = XPLMGetDataf(gPlaneY);// + XPLMGetDataf(gHeadY);
-		outCameraPosition->z = XPLMGetDataf(gPlaneZ);// - XPLMGetDataf(gHeadZ);
-        
+//        outCameraPosition->x = XPLMGetDataf(gPlaneX);// + XPLMGetDataf(gHeadX);
+//		outCameraPosition->y = XPLMGetDataf(gPlaneY);// + XPLMGetDataf(gHeadY);
+//		outCameraPosition->z = XPLMGetDataf(gPlaneZ);// - XPLMGetDataf(gHeadZ);
+//        
         
 	}
     
