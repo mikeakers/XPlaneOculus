@@ -8,11 +8,24 @@
          ignoreCount = "0"
          continueAfterRunningActions = "No"
          filePath = "XPlaneOculus.cpp"
-         timestampString = "391783434.434125"
+         timestampString = "392392231.041342"
          startingColumnNumber = "9223372036854775807"
          endingColumnNumber = "9223372036854775807"
-         startingLineNumber = "196"
-         endingLineNumber = "196"
+         startingLineNumber = "209"
+         endingLineNumber = "209"
+         landmarkName = "MyOrbitPlaneFunc( XPLMCameraPosition_t * outCameraPosition, int inIsLosingControl, void * inRefcon)"
+         landmarkType = "7">
+      </FileBreakpoint>
+      <FileBreakpoint
+         shouldBeEnabled = "No"
+         ignoreCount = "0"
+         continueAfterRunningActions = "No"
+         filePath = "XPlaneOculus.cpp"
+         timestampString = "392385911.360502"
+         startingColumnNumber = "9223372036854775807"
+         endingColumnNumber = "9223372036854775807"
+         startingLineNumber = "193"
+         endingLineNumber = "193"
          landmarkName = "MyOrbitPlaneFunc( XPLMCameraPosition_t * outCameraPosition, int inIsLosingControl, void * inRefcon)"
          landmarkType = "7">
       </FileBreakpoint>

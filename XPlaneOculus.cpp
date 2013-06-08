@@ -178,84 +178,56 @@ int 	MyOrbitPlaneFunc(
     if (outCameraPosition && !inIsLosingControl)
 	{
         char buffer [1000];
+        
+        //get the plane's position
+        float planeX = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_x"));
+        float planeY = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_y"));
+        float planeZ = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_z"));
+        
+        //get the vector to the players head relative to the plane's center of gravity
+        float headX = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peX"));
+        float headY = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peY"));
+        float headZ = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peZ"));
+        
+        //the planes orientation in euler angles
+        float theta = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/theta")) * (M_PI / 180.0f);
+        float psi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/psi"))  * (M_PI / 180.0f);
+        float phi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/phi"))  * (M_PI / 180.0f);
 
+        
+        
+        float q[4];
+        
+        XPLMGetDatavf(XPLMFindDataRef("sim/flightmodel/position/q"), q, 0, 4);
+        
+        
+        
+        //Make a quaternion for our rotation
+        Quat<float> *planeQuat = new Quat<float>(q[1], q[2], q[3], q[0]);
+        //planeQuat->Normalize();
+        
+        Vector3<float> *headVector = new Vector3<float>(headX, headY, headZ);
+        
+        
+        //rotate headVector by plane quat
+        Vector3<float> rotatedHeadVec = planeQuat->Rotate(*headVector);
+        
+        //output our final camera position and orientation
+        outCameraPosition->x = planeX + rotatedHeadVec.x;
+        outCameraPosition->y = planeY + rotatedHeadVec.y;
+        outCameraPosition->z = planeZ + rotatedHeadVec.z;
+        outCameraPosition->pitch = theta * (180.0f / M_PI);
+        outCameraPosition->heading = psi * (180.0f / M_PI);
+        outCameraPosition->roll = phi * (180.0f / M_PI);
+        
+        sprintf(buffer, "hi X:%f Y:%f Z:%f      theta:%f psii:%f phi:%f \n",
+                outCameraPosition->x,
+                outCameraPosition->y,
+                outCameraPosition->z,
+                outCameraPosition->pitch,
+                outCameraPosition->heading,
+                outCameraPosition->roll);
         XPLMDebugString(buffer);
-        
-        
-        Quatf hmdOrient = SFusion.GetOrientation();
-        float sensorYaw = 0.0f;
-        float sensorPitch = 0.0f;
-        float sensorRoll = 0.0f;
-        
-        hmdOrient.GetEulerAngles<Axis_Y, Axis_X, Axis_Z>(&sensorYaw, &sensorPitch, &sensorRoll);
-        
-        float sensorYawDegrees = sensorYaw * (180.0f / M_PI);
-        float sensorPitchDegrees = sensorPitch * (180.0f / M_PI);
-        float sensorRollDegrees = sensorRoll * (180.0f / M_PI);
-        
-        float deltaPitchDegrees = lastSensorPitchDegrees - sensorPitchDegrees;
-        float deltaYawDegrees = lastSensorYawDegrees - sensorYawDegrees;
-        float deltaRollDegrees = lastSensorRollDegrees - sensorRollDegrees;
-        
-        if (lastSensorPitchDegrees == 0.0f) {
-            deltaPitchDegrees = 0.0f;
-            deltaYawDegrees = 0.0f;
-            deltaRollDegrees = 0.0f;
-        }
-        
-        lastSensorPitchDegrees = sensorPitchDegrees;
-        lastSensorYawDegrees = sensorYawDegrees;
-        lastSensorRollDegrees = sensorRollDegrees;
-        
-//        sprintf(buffer, "oculus orientation: X:%f Y:%f Z:%f dX:%f dY:%f dZ:%f\n", sensorPitchDegrees,
-//                                                                                    sensorYawDegrees,
-//                                                                                    sensorRollDegrees,
-//                                                                                    deltaPitchDegrees,
-//                                                                                    deltaYawDegrees,
-//                                                                                    deltaRollDegrees);
-        XPLMDebugString(buffer);
-
-        XPLMDataRef pitchDataRef = XPLMFindDataRef("sim/flightmodel/position/theta");
-        XPLMDataRef rollDataRef = XPLMFindDataRef("sim/flightmodel/position/phi");
-        XPLMDataRef headingDataRef = XPLMFindDataRef("sim/flightmodel/position/psi");
-        
-        float theta = XPLMGetDataf(pitchDataRef);
-        float phi = XPLMGetDataf(rollDataRef);
-        float psi = XPLMGetDataf(headingDataRef);
-        
-        float deltaTheta = lastTheta - theta;
-        float deltaPhi = lastPhi - phi;
-        float deltaPsi = lastPsi - psi;
-        
-        if (lastPsi == 0.0f) {
-            deltaTheta = 0.0f;
-            deltaPsi = 0.0f;
-            deltaPhi = 0.0f;
-        }
-        
-        lastTheta = theta;
-        lastPhi = phi;
-        lastPsi = psi;
-        
-        outCameraPosition->pitch = outCameraPosition->pitch - deltaPitchDegrees + deltaTheta;
-        outCameraPosition->heading = outCameraPosition->heading + deltaYawDegrees - deltaPsi;
-        outCameraPosition->roll = outCameraPosition->roll + deltaRollDegrees - deltaPhi;
-
-        XPLMDataRef gPlaneX = XPLMFindDataRef("sim/flightmodel/position/local_x");
-        XPLMDataRef gPlaneY = XPLMFindDataRef("sim/flightmodel/position/local_y");
-        XPLMDataRef gPlaneZ = XPLMFindDataRef("sim/flightmodel/position/local_z");
-        
-        
-        XPLMDataRef gHeadX = XPLMFindDataRef("sim/aircraft/view/acf_peX");
-        XPLMDataRef gHeadY = XPLMFindDataRef("sim/aircraft/view/acf_peY");
-        XPLMDataRef gHeadZ = XPLMFindDataRef("sim/aircraft/view/acf_peZ");
-        
-        
-//        outCameraPosition->x = XPLMGetDataf(gPlaneX);// + XPLMGetDataf(gHeadX);
-//		outCameraPosition->y = XPLMGetDataf(gPlaneY);// + XPLMGetDataf(gHeadY);
-//		outCameraPosition->z = XPLMGetDataf(gPlaneZ);// - XPLMGetDataf(gHeadZ);
-//        
-        
 	}
     
     
@@ -266,6 +238,7 @@ int 	MyOrbitPlaneFunc(
 PLUGIN_API void	XPluginStop(void)
 {
     XPLMDebugString("Stoping oculus plugin\n");
+    XPLMReloadPlugins();
     
 //	if (gMenuItem == 1)
 //	{
