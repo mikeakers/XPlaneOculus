@@ -177,30 +177,30 @@ int 	MyOrbitPlaneFunc(
 {
     if (outCameraPosition && !inIsLosingControl)
 	{
-        char buffer [1000];
+//        char buffer [1000];
+//        
+//        int cockpitType = XPLMGetDatai(XPLMFindDataRef("acf_cockpit_type"));
+//        sprintf(buffer, "cockpit type: %i\n", cockpitType);
+//        XPLMDebugString(buffer);
         
         //get the plane's position
         float planeX = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_x"));
         float planeY = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_y"));
         float planeZ = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_z"));
         
-        //get the vector to the players head relative to the plane's center of gravity
-        float headX = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peX"));
-        float headY = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peY"));
-        float headZ = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peZ"));
+        //get the vector to the players head relative to the plane's center of gravity.
+        // Fudge factors only work for Cessna 172, sorry.
+        float headX = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peX")) + 0.35; // back forward axis... + is back
+        float headY = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peY")) - 0.135; // horizontal axis + is to the right
+        float headZ = XPLMGetDataf(XPLMFindDataRef("sim/aircraft/view/acf_peZ")) + 0.4; // vertical axis + is up
         
-        //the planes orientation in euler angles
-        float theta = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/theta")) * (M_PI / 180.0f);
+        //the planes orientation in euler angles for whatever reason, in theta isn't lined up right, so there's another fudge factor
+        float theta = (XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/theta")) /*+ 25.0f*/) * (M_PI / 180.0f);
         float psi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/psi"))  * (M_PI / 180.0f);
         float phi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/phi"))  * (M_PI / 180.0f);
 
-        
-        
         float q[4];
-        
         XPLMGetDatavf(XPLMFindDataRef("sim/flightmodel/position/q"), q, 0, 4);
-        
-        
         
         //Make a quaternion for our rotation
         Quat<float> *planeQuat = new Quat<float>(q[1], q[2], q[3], q[0]);
@@ -208,26 +208,26 @@ int 	MyOrbitPlaneFunc(
         
         Vector3<float> *headVector = new Vector3<float>(headX, headY, headZ);
         
-        
         //rotate headVector by plane quat
         Vector3<float> rotatedHeadVec = planeQuat->Rotate(*headVector);
         
         //output our final camera position and orientation
-        outCameraPosition->x = planeX + rotatedHeadVec.x;
-        outCameraPosition->y = planeY + rotatedHeadVec.y;
-        outCameraPosition->z = planeZ + rotatedHeadVec.z;
+        outCameraPosition->x = planeX - rotatedHeadVec.y;
+        outCameraPosition->y = planeY + rotatedHeadVec.z;
+        outCameraPosition->z = planeZ + rotatedHeadVec.x;
+
         outCameraPosition->pitch = theta * (180.0f / M_PI);
         outCameraPosition->heading = psi * (180.0f / M_PI);
         outCameraPosition->roll = phi * (180.0f / M_PI);
         
-        sprintf(buffer, "hi X:%f Y:%f Z:%f      theta:%f psii:%f phi:%f \n",
-                outCameraPosition->x,
-                outCameraPosition->y,
-                outCameraPosition->z,
-                outCameraPosition->pitch,
-                outCameraPosition->heading,
-                outCameraPosition->roll);
-        XPLMDebugString(buffer);
+//        sprintf(buffer, "hi X:%f Y:%f Z:%f      theta:%f psii:%f phi:%f \n",
+//                outCameraPosition->x,
+//                outCameraPosition->y,
+//                outCameraPosition->z,
+//                outCameraPosition->pitch,
+//                outCameraPosition->heading,
+//                outCameraPosition->roll);
+//        XPLMDebugString(buffer);
 	}
     
     
