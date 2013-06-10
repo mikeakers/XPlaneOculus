@@ -66,6 +66,14 @@ void menuHandler(
 
 int keepControl;
 
+XPLMCommandRef resetCommand = NULL;
+
+int    resetCommandHandler(XPLMCommandRef       inCommand,         
+                               XPLMCommandPhase     inPhase,
+                               void *               inRefcon);
+
+int XPluginDrawCallback(XPLMDrawingPhase phase, int isBefore, void* refcon);
+
 PLUGIN_API int XPluginStart(
                             char *		outName,
                             char *		outSig,
@@ -90,6 +98,17 @@ PLUGIN_API int XPluginStart(
     XPLMAppendMenuItem(PluginMenu, "stop", (void *)"stop", 1);
     
 
+    resetCommand = XPLMCreateCommand("OCC/reset", "Counter Up");
+    
+    // Register our custom commands
+    XPLMRegisterCommandHandler(resetCommand,           // in Command name
+                               resetCommandHandler,    // in Handler
+                               1,                          // Receive input before plugin windows.
+                               (void *) 0);                // inRefcon.
+    
+    
+    XPLMRegisterDrawCallback(XPluginDrawCallback, xplm_Phase_Airplanes, 1, NULL);
+    
 //
 //    System::Init(Log::ConfigureDefaultLog(LogMask_All));
 //    
@@ -117,6 +136,7 @@ void menuHandler(
     
     // Change all the strings
     if (strcmp((char *) inItemRef, "start") == 0) {
+        SFusion.Reset();
         XPLMDebugString("Starting head tracking\n");
         keepControl = 1;
         XPLMControlCamera(xplm_ControlCameraForever, MyOrbitPlaneFunc, NULL);
@@ -146,16 +166,10 @@ void menuHandler(
 
         if (pSensor) {
             SFusion.AttachToSensor(pSensor);
+//            SFusion.SetPredictionEnabled(true);
+            
         }
         
-        Quatf hmdOrient = SFusion.GetOrientation();
-        float yaw = 0.0f;
-        float pitch = 0.0f;
-        float roll = 0.0f;
-        hmdOrient.GetEulerAngles<Axis_Y, Axis_X, Axis_Z>(&yaw, &pitch, &roll);
-        
-        sprintf(buffer, "oculus orientation: Y:%f Y:%f z:%f\n", pitch, yaw, roll);
-        XPLMDebugString(buffer);
         
         if (pSensor != NULL) {
             XPLMDebugString("Oculus intialized.\n");
@@ -166,9 +180,11 @@ void menuHandler(
 }
 
 
-XPLMDataRef		gPlaneX = NULL;
-XPLMDataRef		gPlaneY = NULL;
-XPLMDataRef		gPlaneZ = NULL;
+int    resetCommandHandler(XPLMCommandRef       inCommand,
+                           XPLMCommandPhase     inPhase,
+                           void *               inRefcon) {
+    SFusion.Reset();
+}
 
 int 	MyOrbitPlaneFunc(
                      XPLMCameraPosition_t * outCameraPosition,
@@ -177,11 +193,10 @@ int 	MyOrbitPlaneFunc(
 {
     if (outCameraPosition && !inIsLosingControl)
 	{
-//        char buffer [1000];
-//        
-//        int cockpitType = XPLMGetDatai(XPLMFindDataRef("acf_cockpit_type"));
-//        sprintf(buffer, "cockpit type: %i\n", cockpitType);
-//        XPLMDebugString(buffer);
+        char buffer [1000];
+        
+        XPLMSetDataf(XPLMFindDataRef("sim/cockpit2/camera/camera_offset_heading"), 0.0f);
+        XPLMSetDataf(XPLMFindDataRef("sim/cockpit2/camera/camera_offset_roll"), 0.0f);
         
         //get the plane's position
         float planeX = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/local_x"));
@@ -198,27 +213,40 @@ int 	MyOrbitPlaneFunc(
         float theta = (XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/theta")) /*+ 25.0f*/) * (M_PI / 180.0f);
         float psi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/psi"))  * (M_PI / 180.0f);
         float phi = XPLMGetDataf(XPLMFindDataRef("sim/flightmodel/position/phi"))  * (M_PI / 180.0f);
+        
+        sprintf(buffer, "theta:%f psi:%f phi:%f \n", theta, psi, phi);
+//        XPLMDebugString(buffer);
 
         float q[4];
         XPLMGetDatavf(XPLMFindDataRef("sim/flightmodel/position/q"), q, 0, 4);
         
         //Make a quaternion for our rotation
-        Quat<float> *planeQuat = new Quat<float>(q[1], q[2], q[3], q[0]);
+        Quatf planeQuat = Quatf(q[1], q[2], q[3], q[0]);
         //planeQuat->Normalize();
         
-        Vector3<float> *headVector = new Vector3<float>(headX, headY, headZ);
-        
         //rotate headVector by plane quat
-        Vector3<float> rotatedHeadVec = planeQuat->Rotate(*headVector);
+        Vector3f *headVector = new Vector3f(headX, headY, headZ);
+        Vector3f rotatedHeadVec = planeQuat.Rotate(*headVector);
         
+        //add in oculus orientation
+        Quatf hmdOrient = SFusion.GetOrientation();
+        
+        
+        float sensorYaw = 0.0f;
+        float sensorPitch = 0.0f;
+        float sensorRoll = 0.0f;
+        
+        hmdOrient.GetEulerAngles<Axis_Y, Axis_X, Axis_Z>(&sensorYaw, &sensorPitch, &sensorRoll);
+        sensorPitch = sensorPitch;// + 0.6109f;
+                
         //output our final camera position and orientation
         outCameraPosition->x = planeX - rotatedHeadVec.y;
         outCameraPosition->y = planeY + rotatedHeadVec.z;
         outCameraPosition->z = planeZ + rotatedHeadVec.x;
 
-        outCameraPosition->pitch = theta * (180.0f / M_PI);
-        outCameraPosition->heading = psi * (180.0f / M_PI);
-        outCameraPosition->roll = phi * (180.0f / M_PI);
+        outCameraPosition->pitch = (theta + sensorPitch)  * (180.0f / M_PI);
+        outCameraPosition->heading = (psi - sensorYaw)  * (180.0f / M_PI);
+        outCameraPosition->roll = (phi - sensorRoll) * (180.0f / M_PI);
         
 //        sprintf(buffer, "hi X:%f Y:%f Z:%f      theta:%f psii:%f phi:%f \n",
 //                outCameraPosition->x,
@@ -238,13 +266,14 @@ int 	MyOrbitPlaneFunc(
 PLUGIN_API void	XPluginStop(void)
 {
     XPLMDebugString("Stoping oculus plugin\n");
+    
+    
+    OVR::System::Destroy();
+    
+    
+    
     XPLMReloadPlugins();
     
-//	if (gMenuItem == 1)
-//	{
-//		XPDestroyWidget(InstructionsWidget, 1);
-//		gMenuItem = 0;
-//	}
 }
 
 PLUGIN_API int XPluginEnable(void)
@@ -259,3 +288,34 @@ PLUGIN_API void XPluginDisable(void)
 PLUGIN_API void XPluginReceiveMessage(XPLMPluginID inFrom, long inMsg, void * inParam)
 {
 }
+
+//==============================================================================
+// Rendering callback
+//==============================================================================
+int XPluginDrawCallback(XPLMDrawingPhase phase, int isBefore, void* refcon)
+{
+	switch (phase) {
+		case xplm_Phase_Airplanes: {
+            float m[16];
+            glMatrixMode(GL_PROJECTION);
+            glGetFloatv(GL_PROJECTION_MATRIX,m);
+            {
+                float zNear = 0.1f;
+                float zFar = 5.0f;
+                
+                m[2*4+2] = -(zFar + zNear) / (zFar - zNear);
+                m[3*4+2] = -2 * zNear * zFar / (zFar - zNear);
+            }
+            glLoadMatrixf(m);
+            glMatrixMode(GL_MODELVIEW);
+            break;
+
+        }
+			break;
+		default:
+			break;
+	}
+	return 1;
+}
+
+
