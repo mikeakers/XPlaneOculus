@@ -9,8 +9,13 @@
 #ifndef __XPlaneOculus__XPlaneOculus__
 #define __XPlaneOculus__XPlaneOculus__
 
+
 #include <iostream>
+
+#if APL
 #import <CoreFoundation/CoreFoundation.h>
+#endif
+
 
 #include "OVR.h"
 
